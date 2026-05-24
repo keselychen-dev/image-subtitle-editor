@@ -1,0 +1,955 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>图片字幕编辑器</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,500;0,9..40,700;1,9..40,400&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#0f0f11;--bg2:#16161a;--bg3:#1c1c22;
+  --surface:#1e1e26;--surface2:#25252f;--surface3:#2a2a36;
+  --border:#2e2e3a;--border2:#3a3a48;
+  --text:#e8e8ec;--text2:#a0a0b0;--text3:#6a6a7a;
+  --accent:#f0a030;--accent2:#e8922a;--accent-glow:rgba(240,160,48,.15);--accent-glow2:rgba(240,160,48,.08);
+  --danger:#ef4444;--success:#22c55e;
+  --radius:10px;--radius-sm:6px;--radius-lg:14px;
+  --shadow:0 4px 24px rgba(0,0,0,.4);--shadow-sm:0 2px 8px rgba(0,0,0,.3);
+  --transition:all .2s cubic-bezier(.4,0,.2,1);
+}
+@font-face{font-family:'PanelFont';src:local('Noto Sans SC'),local('PingFang SC'),local('Microsoft YaHei'),sans-serif}
+body{
+  font-family:'DM Sans','Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif;
+  background:var(--bg);color:var(--text);height:100vh;display:flex;flex-direction:column;overflow:hidden;
+  -webkit-font-smoothing:antialiased;
+}
+
+/* ===== Scrollbar ===== */
+::-webkit-scrollbar{width:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:10px}
+::-webkit-scrollbar-thumb:hover{background:var(--border2)}
+
+/* ===== Header ===== */
+.header{
+  height:56px;background:var(--bg2);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;padding:0 20px;gap:16px;flex-shrink:0;
+  position:relative;z-index:10;
+}
+.header::after{
+  content:'';position:absolute;bottom:0;left:0;right:0;height:1px;
+  background:linear-gradient(90deg,transparent,var(--accent-glow),transparent);
+}
+.header .logo{
+  font-size:15px;font-weight:700;letter-spacing:-.3px;
+  background:linear-gradient(135deg,var(--accent),#fbbf24);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  display:flex;align-items:center;gap:8px;white-space:nowrap;
+}
+.header .logo-icon{
+  width:28px;height:28px;background:linear-gradient(135deg,var(--accent),#fbbf24);
+  border-radius:7px;display:flex;align-items:center;justify-content:center;
+  font-size:14px;-webkit-text-fill-color:var(--bg);
+}
+.header-actions{display:flex;gap:8px;margin-left:auto}
+
+/* ===== Buttons ===== */
+.btn{
+  padding:7px 18px;border:1px solid var(--border);border-radius:var(--radius-sm);
+  background:var(--surface);cursor:pointer;font-size:13px;font-weight:500;
+  color:var(--text2);transition:var(--transition);white-space:nowrap;
+  font-family:inherit;
+}
+.btn:hover{background:var(--surface2);color:var(--text);border-color:var(--border2)}
+.btn:active{transform:scale(.97)}
+.btn-primary{
+  background:linear-gradient(135deg,var(--accent),#d97706);color:#000;
+  border:none;font-weight:700;
+  box-shadow:0 2px 12px rgba(240,160,48,.25);
+}
+.btn-primary:hover{
+  box-shadow:0 4px 20px rgba(240,160,48,.35);filter:brightness(1.1);
+  color:#000;
+}
+.btn-sm{padding:4px 10px;font-size:11px}
+.btn-ghost{background:transparent;border-color:transparent}
+.btn-ghost:hover{background:var(--surface);border-color:var(--border)}
+
+/* ===== Main Layout ===== */
+.main{flex:1;display:flex;overflow:hidden}
+.panel{
+  width:288px;background:var(--bg2);overflow-y:auto;flex-shrink:0;
+  padding:16px;border-right:1px solid var(--border);
+}
+.panel-right{border-right:none;border-left:1px solid var(--border)}
+
+/* ===== Preview Area ===== */
+.preview-area{
+  flex:1;display:flex;align-items:center;justify-content:center;
+  padding:24px;overflow:hidden;position:relative;
+  background:var(--bg);
+  background-image:
+    radial-gradient(circle at 50% 50%,rgba(240,160,48,.03) 0%,transparent 70%),
+    linear-gradient(rgba(255,255,255,.02) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(255,255,255,.02) 1px,transparent 1px);
+  background-size:100% 100%,24px 24px,24px 24px;
+}
+.preview-area canvas{
+  max-width:100%;max-height:100%;
+  box-shadow:0 8px 40px rgba(0,0,0,.6),0 0 0 1px rgba(255,255,255,.05);
+  border-radius:4px;cursor:default;transition:box-shadow .3s;
+}
+.preview-area canvas:hover{box-shadow:0 12px 48px rgba(0,0,0,.7),0 0 0 1px rgba(255,255,255,.08)}
+
+/* ===== Panel Sections ===== */
+.section{margin-bottom:20px}
+.section-title{
+  font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;
+  color:var(--text3);margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;
+}
+.section-title .val{font-weight:500;color:var(--accent);font-size:11px;letter-spacing:0;text-transform:none}
+
+/* ===== Upload Area ===== */
+.upload-zone{
+  border:2px dashed var(--border);border-radius:var(--radius);
+  padding:28px 16px;text-align:center;cursor:pointer;transition:var(--transition);
+  background:var(--surface);position:relative;overflow:hidden;
+}
+.upload-zone::before{
+  content:'';position:absolute;inset:0;
+  background:radial-gradient(circle at 50% 50%,var(--accent-glow2),transparent 70%);
+  opacity:0;transition:opacity .3s;
+}
+.upload-zone:hover,.upload-zone.dragover{
+  border-color:var(--accent);background:var(--surface2);
+}
+.upload-zone:hover::before,.upload-zone.dragover::before{opacity:1}
+.upload-zone .icon{font-size:28px;color:var(--text3);margin-bottom:8px;position:relative}
+.upload-zone p{font-size:13px;color:var(--text2);font-weight:500;position:relative}
+.upload-zone small{font-size:11px;color:var(--text3);position:relative}
+.upload-info{
+  margin-top:8px;font-size:11px;color:var(--text3);text-align:center;
+  padding:6px 10px;background:var(--surface);border-radius:var(--radius-sm);
+}
+
+/* ===== Textarea ===== */
+.subtitle-input{
+  width:100%;height:160px;border:1px solid var(--border);border-radius:var(--radius);
+  padding:12px;font-size:13px;font-family:inherit;resize:vertical;line-height:1.7;
+  background:var(--surface);color:var(--text);transition:var(--transition);
+}
+.subtitle-input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow)}
+.subtitle-input::placeholder{color:var(--text3)}
+
+/* ===== Controls ===== */
+.control-row{margin-bottom:12px}
+.control-row label{
+  display:flex;justify-content:space-between;align-items:center;
+  font-size:12px;color:var(--text2);margin-bottom:6px;font-weight:500;
+}
+.control-row input[type="range"]{
+  width:100%;height:6px;-webkit-appearance:none;appearance:none;
+  background:var(--surface3);border-radius:3px;outline:none;cursor:pointer;
+}
+.control-row input[type="range"]::-webkit-slider-thumb{
+  -webkit-appearance:none;width:16px;height:16px;border-radius:50%;
+  background:var(--accent);border:2px solid var(--bg2);cursor:pointer;
+  box-shadow:0 0 8px rgba(240,160,48,.3);transition:var(--transition);
+}
+.control-row input[type="range"]::-webkit-slider-thumb:hover{
+  transform:scale(1.2);box-shadow:0 0 12px rgba(240,160,48,.5);
+}
+.control-row input[type="color"]{
+  width:36px;height:28px;border:2px solid var(--border);border-radius:var(--radius-sm);
+  cursor:pointer;padding:2px;background:var(--surface);transition:var(--transition);
+}
+.control-row input[type="color"]:hover{border-color:var(--border2)}
+.control-row select{
+  width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);
+  font-size:12px;font-family:inherit;background:var(--surface);color:var(--text);
+  cursor:pointer;transition:var(--transition);
+}
+.control-row select:focus{outline:none;border-color:var(--accent)}
+.control-row select option{background:var(--bg2);color:var(--text)}
+.inline-controls{display:flex;gap:10px;align-items:center}
+.inline-controls input[type="color"]{flex-shrink:0}
+.inline-controls span{font-size:12px;color:var(--text2);font-weight:500}
+
+/* ===== Layout Mode Selector ===== */
+.layout-modes{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px}
+.layout-mode{
+  padding:10px 8px;border:1px solid var(--border);border-radius:var(--radius);
+  cursor:pointer;text-align:center;font-size:11px;font-weight:500;
+  transition:var(--transition);background:var(--surface);color:var(--text2);
+}
+.layout-mode:hover{border-color:var(--border2);background:var(--surface2);color:var(--text)}
+.layout-mode.active{
+  border-color:var(--accent);background:var(--accent-glow);
+  color:var(--accent);font-weight:700;
+  box-shadow:0 0 12px rgba(240,160,48,.1);
+}
+.layout-mode .mode-icon{font-size:16px;margin-bottom:3px;display:block;opacity:.7}
+.layout-mode.active .mode-icon{opacity:1}
+
+/* ===== AI Generate ===== */
+.ai-section{margin-top:10px}
+.ai-row{display:flex;gap:8px;align-items:center}
+.ai-input{
+  flex:1;padding:8px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);
+  font-size:12px;font-family:inherit;background:var(--surface);color:var(--text);
+  transition:var(--transition);
+}
+.ai-input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow)}
+.ai-input::placeholder{color:var(--text3)}
+.btn-ai{
+  padding:8px 14px;border:none;border-radius:var(--radius-sm);
+  background:linear-gradient(135deg,rgba(240,160,48,.15),rgba(240,160,48,.08));
+  color:var(--accent);cursor:pointer;font-size:12px;font-weight:700;
+  white-space:nowrap;transition:var(--transition);font-family:inherit;
+  border:1px solid rgba(240,160,48,.2);
+}
+.btn-ai:hover{
+  background:linear-gradient(135deg,var(--accent),#d97706);color:#000;
+  box-shadow:0 2px 12px rgba(240,160,48,.25);
+}
+.btn-ai:disabled{opacity:.4;cursor:not-allowed;filter:grayscale(.5)}
+.apikey-row{margin-top:10px}
+.apikey-toggle{
+  font-size:11px;color:var(--text3);cursor:pointer;user-select:none;
+  transition:var(--transition);display:inline-flex;align-items:center;gap:4px;
+}
+.apikey-toggle:hover{color:var(--accent)}
+.apikey-input-wrap{margin-top:6px;display:none}
+.apikey-input-wrap.show{display:flex;gap:6px;align-items:center}
+.apikey-input-wrap input{
+  flex:1;padding:7px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);
+  font-size:11px;font-family:'DM Sans',monospace;background:var(--surface);
+  color:var(--text);transition:var(--transition);
+}
+.apikey-input-wrap input:focus{outline:none;border-color:var(--accent)}
+.ai-loading{
+  display:inline-block;width:14px;height:14px;
+  border:2px solid var(--accent);border-top-color:transparent;
+  border-radius:50%;animation:spin .6s linear infinite;
+  vertical-align:middle;margin-right:4px;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ===== Toast ===== */
+.toast{
+  position:fixed;top:20px;left:50%;transform:translateX(-50%) translateY(-10px);
+  background:var(--surface2);color:var(--text);
+  padding:10px 24px;border-radius:30px;font-size:13px;font-weight:500;
+  z-index:9999;opacity:0;transition:all .3s cubic-bezier(.4,0,.2,1);
+  pointer-events:none;border:1px solid var(--border);
+  box-shadow:0 8px 32px rgba(0,0,0,.5);
+}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ===== Footer ===== */
+.footer{
+  height:30px;background:var(--bg2);border-top:1px solid var(--border);
+  display:flex;align-items:center;justify-content:center;
+  font-size:11px;color:var(--text3);flex-shrink:0;letter-spacing:.3px;
+}
+
+/* ===== Placeholder ===== */
+.placeholder{text-align:center;color:var(--text3)}
+.placeholder .icon{font-size:48px;margin-bottom:12px;opacity:.4}
+.placeholder p{font-size:14px;font-weight:500;opacity:.6}
+
+/* ===== Responsive ===== */
+@media(max-width:900px){
+  .main{flex-direction:column}
+  .panel{width:100%;border-right:none;border-bottom:1px solid var(--border);max-height:40vh;overflow-y:auto}
+  .panel-right{border-left:none;border-top:1px solid var(--border)}
+  .preview-area{min-height:200px}
+}
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <div class="logo">
+    <div class="logo-icon">S</div>
+    SubFrame
+  </div>
+  <div class="header-actions">
+    <button class="btn" onclick="newProject()" title="清除所有内容，重新开始">新建</button>
+    <button class="btn btn-primary" onclick="exportImage()" title="导出为 PNG 图片">导出 PNG</button>
+  </div>
+</div>
+
+<!-- Main -->
+<div class="main">
+  <!-- Left Panel -->
+  <div class="panel">
+    <!-- Upload -->
+    <div class="section">
+      <div class="section-title">图片上传</div>
+      <div class="upload-zone" id="uploadZone">
+        <div class="icon">&#x1f4c2;</div>
+        <p>点击或拖拽上传图片</p>
+        <small>支持 PNG / JPG / WebP</small>
+        <input type="file" id="fileInput" accept="image/png,image/jpeg,image/webp" style="display:none">
+      </div>
+      <div class="upload-info" id="uploadInfo" style="display:none"></div>
+    </div>
+
+    <!-- Subtitle Input -->
+    <div class="section">
+      <div class="section-title">
+        字幕内容
+        <button class="btn btn-ghost btn-sm" onclick="clearSubtitles()">清空</button>
+      </div>
+      <textarea class="subtitle-input" id="subtitleText" placeholder="每行输入一条字幕&#10;例如：&#10;我这里看起来很美&#10;太阳像一只熟透的大橘子&#10;咬一口就会从牙齿甜到心里"></textarea>
+      <div class="ai-section">
+        <div class="ai-row">
+          <input class="ai-input" id="aiPrompt" placeholder="输入主题，如：夕阳下的海边、搞笑配音..." />
+          <button class="btn-ai" id="aiGenerateBtn" onclick="aiGenerate()">AI 生成</button>
+        </div>
+        <div class="apikey-row">
+          <span class="apikey-toggle" onclick="toggleApiKey()">&#9881; 设置 API Key</span>
+          <div class="apikey-input-wrap" id="apikeyWrap">
+            <input type="password" id="apiKeyInput" placeholder="粘贴你的 DeepSeek API Key" />
+            <button class="btn btn-sm" onclick="saveApiKey()">保存</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Preview -->
+  <div class="preview-area" id="previewArea">
+    <canvas id="previewCanvas"></canvas>
+    <div class="placeholder" id="placeholder">
+      <div class="icon">&#x1f5bc;</div>
+      <p>上传图片后在此预览</p>
+    </div>
+  </div>
+
+  <!-- Right Panel -->
+  <div class="panel panel-right">
+    <!-- Layout Mode -->
+    <div class="section">
+      <div class="section-title">布局模式</div>
+      <div class="layout-modes">
+        <div class="layout-mode" data-mode="segmentedBar" onclick="setLayoutMode('segmentedBar')">
+          <span class="mode-icon">&#x2500;&#x2500;&#x2500;</span>分段字幕条
+        </div>
+        <div class="layout-mode" data-mode="simpleBottom" onclick="setLayoutMode('simpleBottom')">
+          <span class="mode-icon">&#x2584;&#x2584;&#x2584;</span>普通底部
+        </div>
+        <div class="layout-mode" data-mode="fullBox" onclick="setLayoutMode('fullBox')">
+          <span class="mode-icon">&#x2591;&#x2591;&#x2591;</span>整体字幕框
+        </div>
+        <div class="layout-mode" data-mode="noBackground" onclick="setLayoutMode('noBackground')">
+          <span class="mode-icon">Aa</span>无背景描边
+        </div>
+      </div>
+    </div>
+
+    <!-- Font Settings -->
+    <div class="section">
+      <div class="section-title">文字设置</div>
+      <div class="control-row">
+        <label>字体大小 <span class="val" id="fontSizeVal">40px</span></label>
+        <input type="range" id="fontSize" min="12" max="120" value="40" oninput="updateStyle('fontSize',+this.value)">
+      </div>
+      <div class="control-row">
+        <label>字体粗细</label>
+        <select id="fontWeight" onchange="updateStyle('fontWeight',this.value)">
+          <option value="400">常规 (400)</option>
+          <option value="600" selected>半粗 (600)</option>
+          <option value="700">粗体 (700)</option>
+          <option value="900">超粗 (900)</option>
+        </select>
+      </div>
+      <div class="control-row inline-controls">
+        <input type="color" id="fontColor" value="#ffffff" oninput="updateStyle('fontColor',this.value)">
+        <span>字体颜色</span>
+      </div>
+      <div class="control-row inline-controls">
+        <input type="color" id="strokeColor" value="#000000" oninput="updateStyle('strokeColor',this.value)">
+        <span>描边颜色</span>
+      </div>
+      <div class="control-row">
+        <label>描边粗细 <span class="val" id="strokeWidthVal">2px</span></label>
+        <input type="range" id="strokeWidth" min="0" max="10" value="2" oninput="updateStyle('strokeWidth',+this.value)">
+      </div>
+      <div class="control-row">
+        <label>文字对齐</label>
+        <select id="textAlign" onchange="updateStyle('align',this.value)">
+          <option value="center" selected>居中</option>
+          <option value="left">左对齐</option>
+          <option value="right">右对齐</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Bar Settings -->
+    <div class="section" id="barSection">
+      <div class="section-title">字幕条设置</div>
+      <div class="control-row">
+        <label>字幕条高度 <span class="val" id="barHeightVal">96px</span></label>
+        <input type="range" id="barHeight" min="30" max="200" value="96" oninput="updateLayout('barHeight',+this.value)">
+      </div>
+      <div class="control-row inline-controls">
+        <input type="color" id="barColor" value="#000000" oninput="updateLayout('barColor',this.value)">
+        <span>字幕条颜色</span>
+      </div>
+      <div class="control-row">
+        <label>字幕条透明度 <span class="val" id="barOpacityVal">35%</span></label>
+        <input type="range" id="barOpacity" min="0" max="100" value="35" oninput="updateLayout('barOpacity',+this.value)">
+      </div>
+      <div class="control-row">
+        <label>字幕条间距 <span class="val" id="barGapVal">0px</span></label>
+        <input type="range" id="barGap" min="0" max="20" value="0" oninput="updateLayout('barGap',+this.value)">
+      </div>
+    </div>
+
+    <!-- Position -->
+    <div class="section">
+      <div class="section-title">位置设置</div>
+      <div class="control-row">
+        <label>字幕位置</label>
+        <select id="position" onchange="updateLayout('position',this.value)">
+          <option value="bottom" selected>底部</option>
+          <option value="middle">居中</option>
+          <option value="top">顶部</option>
+        </select>
+      </div>
+      <div class="control-row">
+        <label>底部距离 <span class="val" id="bottomOffsetVal">0px</span></label>
+        <input type="range" id="bottomOffset" min="0" max="500" value="0" oninput="updateLayout('bottomOffset',+this.value)">
+      </div>
+    </div>
+
+    <!-- Export Settings -->
+    <div class="section">
+      <div class="section-title">导出设置</div>
+      <div class="control-row">
+        <label>导出清晰度</label>
+        <select id="exportScale" onchange="updateExport('scale',+this.value)">
+          <option value="1">1x 原图尺寸</option>
+          <option value="2" selected>2x 高清</option>
+          <option value="3">3x 超高清</option>
+        </select>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Footer -->
+<div class="footer">图片仅在本地浏览器处理，不会上传到任何服务器</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ==================== State ====================
+const state = {
+  image: { src: null, width: 0, height: 0, name: '' },
+  subtitles: [],
+  style: {
+    fontSize: 40,
+    fontWeight: '600',
+    fontColor: '#ffffff',
+    strokeColor: '#000000',
+    strokeWidth: 2,
+    align: 'center'
+  },
+  layout: {
+    mode: 'segmentedBar',
+    barHeight: 96,
+    barGap: 0,
+    barColor: '#000000',
+    barOpacity: 35,
+    position: 'bottom',
+    bottomOffset: 0
+  },
+  export: { scale: 2 }
+};
+
+let imgObj = null;
+let renderTimer = null;
+
+// ==================== Init ====================
+window.addEventListener('DOMContentLoaded', () => {
+  loadState();
+  setupUpload();
+  setupSubtitleInput();
+  updateLayoutModeUI();
+  syncUIFromState();
+  if (getApiKey()) {
+    document.querySelector('.apikey-toggle').textContent = '\u2699 API Key 已设置';
+  }
+  render();
+  window.addEventListener('resize', debounce(render, 150));
+});
+
+// ==================== Upload ====================
+function setupUpload() {
+  const zone = document.getElementById('uploadZone');
+  const input = document.getElementById('fileInput');
+
+  zone.addEventListener('click', () => input.click());
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragover'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+  zone.addEventListener('drop', e => {
+    e.preventDefault();
+    zone.classList.remove('dragover');
+    const file = e.dataTransfer.files[0];
+    if (file) handleFile(file);
+  });
+  input.addEventListener('change', e => {
+    if (e.target.files[0]) handleFile(e.target.files[0]);
+  });
+}
+
+function handleFile(file) {
+  if (!file.type.match(/^image\/(png|jpe?g|webp)$/)) {
+    showToast('请上传 PNG、JPG 或 WebP 格式的图片');
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = e => {
+    const img = new Image();
+    img.onload = () => {
+      let w = img.naturalWidth, h = img.naturalHeight;
+      if (w > 6000 || h > 6000) {
+        const ratio = Math.min(6000 / w, 6000 / h);
+        w = Math.round(w * ratio);
+        h = Math.round(h * ratio);
+        showToast('图片已自动缩放至 ' + w + '\u00d7' + h);
+      }
+      state.image = { src: e.target.result, width: w, height: h, name: file.name };
+      imgObj = img;
+      autoFontSize(w);
+      const info = document.getElementById('uploadInfo');
+      info.textContent = file.name + ' (' + img.naturalWidth + '\u00d7' + img.naturalHeight + ')';
+      info.style.display = 'block';
+      document.getElementById('placeholder').style.display = 'none';
+      document.getElementById('previewCanvas').style.display = 'block';
+      saveState();
+      render();
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function autoFontSize(imgWidth) {
+  const size = Math.round(imgWidth * 0.04);
+  state.style.fontSize = Math.max(16, Math.min(120, size));
+  state.layout.barHeight = Math.round(state.style.fontSize * 2.4);
+  syncUIFromState();
+}
+
+// ==================== Subtitle Input ====================
+function setupSubtitleInput() {
+  const ta = document.getElementById('subtitleText');
+  ta.addEventListener('input', debounce(() => {
+    const lines = ta.value.split('\n').filter(l => l.trim());
+    state.subtitles = lines.map((text, i) => ({ id: 's' + i, text: text.trim(), visible: true }));
+    saveState();
+    render();
+  }, 80));
+}
+
+function clearSubtitles() {
+  document.getElementById('subtitleText').value = '';
+  state.subtitles = [];
+  saveState();
+  render();
+}
+
+// ==================== State Updaters ====================
+function updateStyle(key, val) {
+  state.style[key] = val;
+  if (key === 'fontSize') document.getElementById('fontSizeVal').textContent = val + 'px';
+  if (key === 'strokeWidth') document.getElementById('strokeWidthVal').textContent = val + 'px';
+  saveState();
+  render();
+}
+
+function updateLayout(key, val) {
+  state.layout[key] = val;
+  if (key === 'barHeight') document.getElementById('barHeightVal').textContent = val + 'px';
+  if (key === 'barOpacity') document.getElementById('barOpacityVal').textContent = val + '%';
+  if (key === 'barGap') document.getElementById('barGapVal').textContent = val + 'px';
+  if (key === 'bottomOffset') document.getElementById('bottomOffsetVal').textContent = val + 'px';
+  saveState();
+  render();
+}
+
+function updateExport(key, val) {
+  state.export[key] = val;
+  saveState();
+}
+
+function setLayoutMode(mode) {
+  state.layout.mode = mode;
+  updateLayoutModeUI();
+  const barSection = document.getElementById('barSection');
+  barSection.style.display = (mode === 'noBackground') ? 'none' : 'block';
+  saveState();
+  render();
+}
+
+function updateLayoutModeUI() {
+  document.querySelectorAll('.layout-mode').forEach(el => {
+    el.classList.toggle('active', el.dataset.mode === state.layout.mode);
+  });
+  document.getElementById('barSection').style.display =
+    (state.layout.mode === 'noBackground') ? 'none' : 'block';
+}
+
+function syncUIFromState() {
+  const s = state.style, l = state.layout;
+  document.getElementById('fontSize').value = s.fontSize;
+  document.getElementById('fontSizeVal').textContent = s.fontSize + 'px';
+  document.getElementById('fontWeight').value = s.fontWeight;
+  document.getElementById('fontColor').value = s.fontColor;
+  document.getElementById('strokeColor').value = s.strokeColor;
+  document.getElementById('strokeWidth').value = s.strokeWidth;
+  document.getElementById('strokeWidthVal').textContent = s.strokeWidth + 'px';
+  document.getElementById('textAlign').value = s.align;
+  document.getElementById('barHeight').value = l.barHeight;
+  document.getElementById('barHeightVal').textContent = l.barHeight + 'px';
+  document.getElementById('barColor').value = l.barColor;
+  document.getElementById('barOpacity').value = l.barOpacity;
+  document.getElementById('barOpacityVal').textContent = l.barOpacity + '%';
+  document.getElementById('barGap').value = l.barGap;
+  document.getElementById('barGapVal').textContent = l.barGap + 'px';
+  document.getElementById('position').value = l.position;
+  document.getElementById('bottomOffset').value = l.bottomOffset;
+  document.getElementById('bottomOffsetVal').textContent = l.bottomOffset + 'px';
+  document.getElementById('exportScale').value = state.export.scale;
+}
+
+// ==================== Canvas Render ====================
+function render() {
+  const canvas = document.getElementById('previewCanvas');
+  const area = document.getElementById('previewArea');
+  if (!state.image.src) {
+    canvas.style.display = 'none';
+    document.getElementById('placeholder').style.display = 'block';
+    return;
+  }
+  canvas.style.display = 'block';
+  document.getElementById('placeholder').style.display = 'none';
+
+  const imgW = state.image.width, imgH = state.image.height;
+  const areaW = area.clientWidth - 48, areaH = area.clientHeight - 48;
+  const scale = Math.min(areaW / imgW, areaH / imgH, 1);
+  const cw = Math.round(imgW * scale), ch = Math.round(imgH * scale);
+
+  canvas.width = cw;
+  canvas.height = ch;
+  canvas.style.width = cw + 'px';
+  canvas.style.height = ch + 'px';
+
+  const ctx = canvas.getContext('2d');
+  drawFrame(ctx, imgW, imgH, cw, ch, scale);
+}
+
+function drawFrame(ctx, origW, origH, drawW, drawH, scale) {
+  ctx.clearRect(0, 0, drawW, drawH);
+  if (imgObj) ctx.drawImage(imgObj, 0, 0, drawW, drawH);
+
+  const subs = state.subtitles.filter(s => s.visible && s.text);
+  if (subs.length === 0) return;
+
+  const s = state.style, l = state.layout;
+  const fontSize = s.fontSize * scale;
+  const barHeight = l.barHeight * scale;
+  const barGap = l.barGap * scale;
+  const strokeWidth = s.strokeWidth * scale;
+  const bottomOffset = l.bottomOffset * scale;
+
+  ctx.textBaseline = 'middle';
+
+  const N = subs.length;
+  const totalH = N * barHeight + (N - 1) * barGap;
+
+  let groupTopY;
+  if (l.position === 'top') groupTopY = bottomOffset;
+  else if (l.position === 'middle') groupTopY = (drawH - totalH) / 2;
+  else groupTopY = drawH - bottomOffset - totalH;
+
+  if (l.mode === 'segmentedBar') drawSegmentedBars(ctx, subs, drawW, groupTopY, barHeight, barGap, fontSize, strokeWidth, s, l, scale);
+  else if (l.mode === 'simpleBottom') drawSimpleBottom(ctx, subs, drawW, groupTopY, barHeight, barGap, fontSize, strokeWidth, s, scale);
+  else if (l.mode === 'fullBox') drawFullBox(ctx, subs, drawW, groupTopY, barHeight, barGap, totalH, fontSize, strokeWidth, s, l, scale);
+  else if (l.mode === 'noBackground') drawNoBackground(ctx, subs, drawW, groupTopY, barHeight, barGap, fontSize, strokeWidth, s, scale);
+}
+
+function drawSegmentedBars(ctx, subs, drawW, groupTopY, barH, barGap, fontSize, strokeW, s, l, scale) {
+  subs.forEach((sub, i) => {
+    const y = groupTopY + i * (barH + barGap);
+    ctx.fillStyle = hexToRgba(l.barColor, l.barOpacity / 100);
+    ctx.fillRect(0, y, drawW, barH);
+    drawSubText(ctx, sub.text, drawW, y, barH, fontSize, strokeW, s);
+  });
+}
+
+function drawSimpleBottom(ctx, subs, drawW, groupTopY, barH, barGap, fontSize, strokeW, s, scale) {
+  subs.forEach((sub, i) => {
+    const y = groupTopY + i * (barH + barGap);
+    drawSubText(ctx, sub.text, drawW, y, barH, fontSize, strokeW, s);
+  });
+}
+
+function drawFullBox(ctx, subs, drawW, groupTopY, barH, barGap, totalH, fontSize, strokeW, s, l, scale) {
+  ctx.fillStyle = hexToRgba(l.barColor, l.barOpacity / 100);
+  ctx.fillRect(0, groupTopY, drawW, totalH);
+  subs.forEach((sub, i) => {
+    const y = groupTopY + i * (barH + barGap);
+    drawSubText(ctx, sub.text, drawW, y, barH, fontSize, strokeW, s);
+  });
+}
+
+function drawNoBackground(ctx, subs, drawW, groupTopY, barH, barGap, fontSize, strokeW, s, scale) {
+  subs.forEach((sub, i) => {
+    const y = groupTopY + i * (barH + barGap);
+    drawSubText(ctx, sub.text, drawW, y, barH, fontSize, strokeW, s);
+  });
+}
+
+function drawSubText(ctx, text, canvasW, barY, barH, fontSize, strokeW, s) {
+  const centerX = canvasW / 2;
+  const centerY = barY + barH / 2;
+  const padding = 24;
+
+  ctx.font = s.fontWeight + ' ' + fontSize + 'px "DM Sans","Noto Sans SC","PingFang SC","Microsoft YaHei",sans-serif';
+  let actualFontSize = fontSize;
+  const maxWidth = canvasW - padding * 2;
+  while (ctx.measureText(text).width > maxWidth && actualFontSize > 8) {
+    actualFontSize -= 1;
+    ctx.font = s.fontWeight + ' ' + actualFontSize + 'px "DM Sans","Noto Sans SC","PingFang SC","Microsoft YaHei",sans-serif';
+  }
+
+  let textX;
+  if (s.align === 'left') { ctx.textAlign = 'left'; textX = padding; }
+  else if (s.align === 'right') { ctx.textAlign = 'right'; textX = canvasW - padding; }
+  else { ctx.textAlign = 'center'; textX = centerX; }
+
+  if (strokeW > 0) {
+    ctx.strokeStyle = s.strokeColor;
+    ctx.lineWidth = strokeW;
+    ctx.lineJoin = 'round';
+    ctx.miterLimit = 2;
+    ctx.strokeText(text, textX, centerY);
+  }
+  ctx.fillStyle = s.fontColor;
+  ctx.fillText(text, textX, centerY);
+}
+
+// ==================== Export ====================
+function exportImage() {
+  if (!state.image.src) { showToast('请先上传图片'); return; }
+  const scale = state.export.scale;
+  const w = state.image.width * scale, h = state.image.height * scale;
+  const canvas = document.createElement('canvas');
+  canvas.width = w; canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  drawFrame(ctx, state.image.width, state.image.height, w, h, scale);
+  canvas.toBlob(blob => {
+    if (!blob) { showToast('导出失败，请重试'); return; }
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = (state.image.name || 'subtitle') + '_\u5b57\u5e55.png';
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('\u5bfc\u51fa\u6210\u529f\uff01');
+  }, 'image/png');
+}
+
+// ==================== New Project ====================
+function newProject() {
+  if (!confirm('确定要新建项目吗？当前编辑内容将被清除。')) return;
+  state.image = { src: null, width: 0, height: 0, name: '' };
+  state.subtitles = [];
+  state.style = { fontSize: 40, fontWeight: '600', fontColor: '#ffffff', strokeColor: '#000000', strokeWidth: 2, align: 'center' };
+  state.layout = { mode: 'segmentedBar', barHeight: 96, barGap: 0, barColor: '#000000', barOpacity: 35, position: 'bottom', bottomOffset: 0 };
+  imgObj = null;
+  document.getElementById('uploadInfo').style.display = 'none';
+  document.getElementById('subtitleText').value = '';
+  document.getElementById('placeholder').style.display = 'block';
+  document.getElementById('previewCanvas').style.display = 'none';
+  localStorage.removeItem('subtitleEditorState');
+  syncUIFromState();
+  updateLayoutModeUI();
+  render();
+  showToast('\u5df2\u65b0\u5efa\u9879\u76ee');
+}
+
+// ==================== Persistence ====================
+function saveState() {
+  try {
+    const toSave = JSON.parse(JSON.stringify(state));
+    const json = JSON.stringify(toSave);
+    if (json.length > 4 * 1024 * 1024) {
+      toSave.image.src = null;
+      localStorage.setItem('subtitleEditorState', JSON.stringify(toSave));
+    } else {
+      localStorage.setItem('subtitleEditorState', json);
+    }
+  } catch (e) {
+    try {
+      const toSave = JSON.parse(JSON.stringify(state));
+      toSave.image.src = null;
+      localStorage.setItem('subtitleEditorState', JSON.stringify(toSave));
+    } catch (e2) {}
+  }
+}
+
+function loadState() {
+  try {
+    const saved = localStorage.getItem('subtitleEditorState');
+    if (!saved) return;
+    const parsed = JSON.parse(saved);
+    Object.assign(state.style, parsed.style || {});
+    Object.assign(state.layout, parsed.layout || {});
+    Object.assign(state.export, parsed.export || {});
+    if (parsed.subtitles) state.subtitles = parsed.subtitles;
+    if (parsed.image && parsed.image.src) {
+      state.image = parsed.image;
+      const img = new Image();
+      img.onload = () => {
+        imgObj = img;
+        const info = document.getElementById('uploadInfo');
+        info.textContent = state.image.name + ' (' + state.image.width + '\u00d7' + state.image.height + ')';
+        info.style.display = 'block';
+        document.getElementById('placeholder').style.display = 'none';
+        document.getElementById('previewCanvas').style.display = 'block';
+        render();
+      };
+      img.src = parsed.image.src;
+    }
+    if (parsed.subtitles && parsed.subtitles.length) {
+      document.getElementById('subtitleText').value = parsed.subtitles.map(s => s.text).join('\n');
+    }
+  } catch (e) {}
+}
+
+// ==================== Utilities ====================
+function hexToRgba(hex, alpha) {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return 'rgba(' + r + ',' + g + ',' + b + ',' + alpha + ')';
+}
+
+function debounce(fn, ms) {
+  let timer;
+  return function (...args) { clearTimeout(timer); timer = setTimeout(() => fn.apply(this, args), ms); };
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+// ==================== AI Generate ====================
+function toggleApiKey() {
+  document.getElementById('apikeyWrap').classList.toggle('show');
+}
+
+function saveApiKey() {
+  const key = document.getElementById('apiKeyInput').value.trim();
+  if (!key) { showToast('请输入 API Key'); return; }
+  localStorage.setItem('deepseek_api_key', key);
+  showToast('API Key 已保存');
+  document.getElementById('apikeyWrap').classList.remove('show');
+  document.querySelector('.apikey-toggle').textContent = '\u2699 API Key 已设置';
+}
+
+function getApiKey() {
+  return localStorage.getItem('deepseek_api_key') || '';
+}
+
+async function aiGenerate() {
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    showToast('请先设置 DeepSeek API Key');
+    document.getElementById('apikeyWrap').classList.add('show');
+    return;
+  }
+
+  const btn = document.getElementById('aiGenerateBtn');
+  const prompt = document.getElementById('aiPrompt').value.trim();
+  const hasImage = !!state.image.src;
+
+  const systemMsg = '你是一个短视频字幕文案生成助手。根据用户提供的主题或图片描述，生成适合放在图片上的字幕文案。要求：\n' +
+    '1. 生成3-6行短句，每行不超过15个字\n' +
+    '2. 风格生动有趣，适合短视频/表情包/社交媒体\n' +
+    '3. 只输出字幕文案，每行一条，不要编号和标点符号\n' +
+    '4. 不要加任何解释说明，只输出纯文字';
+
+  let userMsg = '';
+  if (prompt) {
+    userMsg = '主题：' + prompt;
+    if (hasImage) userMsg += '\n图片场景参考：' + (state.image.name || '已上传图片');
+  } else if (hasImage) {
+    userMsg = '请根据这张图片的场景生成适合的字幕文案。图片文件名：' + (state.image.name || '未知');
+  } else {
+    userMsg = '请随机生成一段适合配图的搞笑/文艺字幕文案';
+  }
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="ai-loading"></span>生成中...';
+
+  try {
+    const messages = [
+      { role: 'system', content: systemMsg },
+      { role: 'user', content: userMsg }
+    ];
+
+    if (hasImage && state.image.src) {
+      messages[1].content = [
+        { type: 'text', text: userMsg + '\n\n请结合这张图片的内容和场景来生成字幕。' },
+        { type: 'image_url', image_url: { url: state.image.src } }
+      ];
+    }
+
+    const resp = await fetch('https://api.deepseek.com/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
+      body: JSON.stringify({ model: 'deepseek-chat', messages, max_tokens: 500, temperature: 0.8 })
+    });
+
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      throw new Error(err.error?.message || 'API 请求失败 (' + resp.status + ')');
+    }
+
+    const data = await resp.json();
+    const text = data.choices?.[0]?.message?.content || '';
+    if (!text.trim()) throw new Error('AI 未返回内容');
+
+    const lines = text.split('\n')
+      .map(l => l.replace(/^[\d\-\u2022\*\.\s]+/, '').replace(/[""\u201c\u201d'']/g, '').trim())
+      .filter(l => l.length > 0);
+
+    document.getElementById('subtitleText').value = lines.join('\n');
+    state.subtitles = lines.map((t, i) => ({ id: 's' + i, text: t, visible: true }));
+    saveState();
+    render();
+    showToast('AI 文案生成成功！');
+  } catch (e) {
+    showToast('生成失败：' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'AI 生成';
+  }
+}
+</script>
+</body>
+</html>
